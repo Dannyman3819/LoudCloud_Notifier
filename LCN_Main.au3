@@ -13,7 +13,10 @@
 #include "Include\Notify.au3"
 #include "Include\AES.au3"
 
+
 Opt("TrayAutoPause", 0)
+TraySetIcon( "LCN.ico" )
+
 
 ; Register message for click event
 _Notify_RegMsg()
@@ -26,8 +29,13 @@ $sFrequency = ""
 $confHandle = FileOpen("LCN.conf") ;load config settings from setup
 
 If $confHandle = -1 Then
-	MsgBox(1, "LCN Error", "An error has ccured opening config file. Please run setup! Exiting!")
-	Exit
+	$setup = MsgBox(4, "LCN Error", "An error has ccured opening config file. Would you like to run setup?")
+	if $setup = "6" Then
+		RunWait( "LCN_Gui.exe" )
+		$confHandle = FileOpen("LCN.conf")
+	Else
+		Exit
+	EndIf
 EndIf
 
 $confRead = FileRead($confHandle)
@@ -59,7 +67,7 @@ $delay = 5 * $sFrequency ;for testing purposes
 While 1 ;main background process
 	If $count1 = $delay Then
 		;MsgBox(1, "DEBUG", "HERE")
-		getRawHtml($PSY&" "&$ENG&" "&$MAT&" "&$PHI&" "&$sUsername&" "&$sPassword);runs .bat script to get info from LC
+		getRawHtml();runs .bat script to get info from LC
 		; $aDataHandle = FileOpen($aDataLocation)
 		$aDataHandleWrite = FileOpen( "Temp\dataFile.txt", 10 )
 		$aDataHandle = FileOpen( "Temp\dataFile.txt" )
@@ -71,6 +79,7 @@ While 1 ;main background process
 		start()
 		FileClose($aDataHandleWrite)
 		FileClose($aDataHandle)
+		$count1 = 0
 	EndIf
 
 	Sleep(1000)
@@ -153,16 +162,16 @@ FileClose( $aDataHandle4 )
 EndFunc
 
 Func Notify($Title, $Text)
-	_Notify_Set(Default)
-	_Notify_Show(0, $Title, $Text)
+	_Notify_Set(0, Default, 0x7EBEE9, "Arial", True, 750, 250)
+	_Notify_Show("LCN.ico", $Title, $Text)
 EndFunc   ;==>Notify
 
-Func getRawHtml($classID)
+Func getRawHtml()
 	;RunWait( "1st_Final_step.bat" )
-	$classID = ""
-	MsgBox(1, "1", $classID)
-	ShellExecuteWait(@ScriptDir & "\Fetch_Announcements.bat", $classID, "", "", @SW_HIDE)
-
+	;$classID = ""
+	;MsgBox(1, "1", $classID)
+	;MsgBox( 1, "DEBUG", $ENG & @CRLF & $PSY & @CRLF & $PHI & @CRLF & $MAT & @CRLF & $sUsername & @CRLF & $sPassword )
+	ShellExecuteWait(@ScriptDir & "\Fetch_Announcements.bat", $PSY & " " & $ENG & " " & $MAT & " " & $PHI & " " & $sUsername & " " & $sPassword, "", "", @SW_HIDE)
 
 EndFunc   ;==>getRawHtml
 
@@ -184,7 +193,7 @@ Func getAnnouncements($htmFile, $dataFile)
 	While $loop
 
 		If $a1 = 0 Then
-			MsgBox(1, "IF", "ERROR No Announcements")
+			;MsgBox(1, "IF", "ERROR No Announcements")
 			;Exit
 			Return 0
 			ExitLoop
@@ -232,22 +241,22 @@ Func load()
 	Local $readBuffer = ""
 	$random = FileReadLine($confHandle, 8) ;random
 	$readBuffer = FileReadLine($confHandle, 2) ;username
-	MsgBox(1 ,"DEBUGGER",$readBuffer)
+	;MsgBox(1 ,"DEBUGGER",$readBuffer)
 	$sUsername = _AesDecrypt($random, $readBuffer)
 	$sUsername = BinaryToString($sUsername)
 	;$sUsername = $readBuffer
-	MsgBox(1 ,"DEBUGGER",$sUsername)
+	;MsgBox(1 ,"DEBUGGER",$sUsername)
 	$readBuffer = FileReadLine($confHandle, 3) ;pass
-	MsgBox(1 ,"DEBUGGER",$readBuffer)
+	;MsgBox(1 ,"DEBUGGER",$readBuffer)
 	$sPassword = _AesDecrypt($random, $readBuffer)
 	$sPassword = BinaryToString($sPassword)
 	;$sPassword = $readBuffer
-	MsgBox(1 ,"DEBUGGER",$sPassword)
+	;MsgBox(1 ,"DEBUGGER",$sPassword)
 
 	$sFrequency = FileReadLine($confHandle, 4)
+	;if $sFrequency = "" Then $sFrequency = "1"
 	$s_cOn = FileReadLine($confHandle, 5)
 	$s_eOn = FileReadLine($confHandle, 6)
 	$s_Ln_aOn = FileReadLine($confHandle, 7)
 	FileClose($confHandle)
 EndFunc   ;==>load
-

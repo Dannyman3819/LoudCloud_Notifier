@@ -11,13 +11,13 @@ if "%*"=="" (
 	set pWord="Canyon85017"
 	REM ENG class code
 ) else (
-	set Class1="%1"
-	set Class2="%2"
-	set Class3="%3"
-	set Class4="%4"
+	set Class1=%1
+	set Class2=%2
+	set Class3=%3
+	set Class4=%4
 	
-	set uName="%5"
-	set pWord="%6"
+	set uName=%5
+	set pWord=%6
 )
 
 for /f %%x in ('wmic path win32_utctime get /format:list ^| findstr "="') do (

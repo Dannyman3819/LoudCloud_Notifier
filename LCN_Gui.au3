@@ -7,6 +7,8 @@
 #include <Crypt.au3>
 #Include "Include\AES.au3"
 
+TraySetIcon( "LCN.ico" )
+
 ;sets all settings off
 $V_cOn = 0
 ;~ $V_cOff = 1
