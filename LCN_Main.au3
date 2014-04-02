@@ -7,31 +7,54 @@
 	Script Function:
 	This script will check your LC notifications and notifiy you if you have any new ones.
 	specifically this script runs in the background and runs other scripts
+
 #ce ----------------------------------------------------------------------------
 
 #include <Array.au3>
-#include "Include\Notify.au3"
 #include "Include\AES.au3"
-
+#include <File.au3>
 
 Opt("TrayAutoPause", 0)
-TraySetIcon( "LCN.ico" )
+Opt("TrayMenuMode", 3) ; The default tray menu items will not be shown and items are not checked when selected. These are options 1 and 2 for TrayMenuMode.
+Opt("TrayOnEventMode", 1) ; Enable TrayOnEventMode.
 
+TraySetIcon("LCN.ico")
+$tAbout = TrayCreateItem("About")
+TrayItemSetOnEvent(-1, "showAbout")
+$tSetup = TrayCreateItem("Setup")
+TrayItemSetOnEvent(-1, "tSetup")
+$tExit = TrayCreateItem("Exit")
+TrayItemSetOnEvent(-1, "ExitScript")
+TraySetState(1) ; Show the tray menu.
 
-; Register message for click event
-_Notify_RegMsg()
-
-; Set notification location
-_Notify_Locate(0)
-
-$sFrequency = ""
+$sFrequency = "1"
+$s_f_mOn = ""
+$s_Ln_aOn = "1"
+$s_f_iOn = ""
+$s_w_On = ""
+$s_a_lOn = "0"; turns debugging off until conf file is read
+$s_cOn = ""
+$adataID = ""
+$nCount = 0
 
 $confHandle = FileOpen("LCN.conf") ;load config settings from setup
+$DebugOverride = 0 ;overrides setting in config file good for debugging problems before opening of the conf file
+
+if $s_a_lOn = 1 or $DebugOverride = 1 Then
+		$DebugLog = FileOpen("Temp\debug.log", 2) ;open log for debugging
+EndIf
+
+
+
+debug("Starting Program Advanced script logging")
+if @error Then errorCode(1001)
 
 If $confHandle = -1 Then
+	debug("-Error- No config file found!")
 	$setup = MsgBox(4, "LCN Error", "An error has ccured opening config file. Would you like to run setup?")
-	if $setup = "6" Then
-		RunWait( "LCN_Gui.exe" )
+	If $setup = "6" Then
+		debug("Running LCN Setup")
+		RunWait("LCN_Gui.exe")
 		$confHandle = FileOpen("LCN.conf")
 	Else
 		Exit
@@ -40,94 +63,112 @@ EndIf
 
 $confRead = FileRead($confHandle)
 If $confRead = "" Then
+	debug("-Error- Reading config file!")
 	MsgBox(1, "LCN Error", "An error has ccured reading config file. Exiting!")
 	Exit
 EndIf
 
 ;class ID's:
-$PSY = "9a5769f0-ac0a-4089-9ea7-9a922f94c295"
-$ENG = "a3ba3bfc-8b74-4f86-8ef1-4576345b66ca"
-$MAT = "cb60a800-503d-420e-bee2-b8a65cc9fcf2"
-$PHI = "d16dfd79-74d2-4d46-a186-d38b157f1c8e"
+;$PSY = "9a5769f0-ac0a-4089-9ea7-9a922f94c295"
+;$ENG = "a3ba3bfc-8b74-4f86-8ef1-4576345b66ca"
+;$MAT = "cb60a800-503d-420e-bee2-b8a65cc9fcf2"
+;$PHI = "d16dfd79-74d2-4d46-a186-d38b157f1c8e"
 
 $sPassword = ""
 $sUsername = ""
 
-;getRawHtml($ENG);runs .bat script to get info from LC
-;getAnnouncements("Temp\Announcements.htm", "dataFile.txt");parses data into txt file
 load();loads conf file
+debug("Finished loading config file")
 
-$count1 = 0
+$delay = 60*$sFrequency
+;$delay = 5 * $sFrequency ;for testing purposes
+$count1 = $delay ;start with counter to max so when program start it will load
 
-;$delay = 60*$sFrequency
-$delay = 5 * $sFrequency ;for testing purposes
-
-;start() ;runs check once
-
-While 1 ;main background process
+While 1 ;main background process; error code 02
 	If $count1 = $delay Then
-		;MsgBox(1, "DEBUG", "HERE")
+		load();loads conf file
 		getRawHtml();runs .bat script to get info from LC
-		; $aDataHandle = FileOpen($aDataLocation)
-		$aDataHandleWrite = FileOpen( "Temp\dataFile.txt", 10 )
-		$aDataHandle = FileOpen( "Temp\dataFile.txt" )
-		getAnnouncements("Temp\Announcements1.htm", "Temp\dataFile1.txt");parses data into txt file
-		getAnnouncements("Temp\Announcements2.htm", "Temp\dataFile2.txt");parses data into txt file
-		getAnnouncements("Temp\Announcements3.htm", "Temp\dataFile3.txt");parses data into txt file
-		getAnnouncements("Temp\Announcements4.htm", "Temp\dataFile4.txt");parses data into txt file
-		dataCombine("4");function that opens and combines X many files
+		$aDataHandleWrite = FileOpen("Temp\dataFile.txt", 10)
+		$aDataHandle = FileOpen("Temp\dataFile.txt")
+
+		$dCount = 1
+		$dCount1 = 0 ;clears how many files there are
+		While $dCount
+			$dCount1 = $dCount1 + 1
+			If FileExists("Temp\Announcements" & $dCount1 & ".htm") Then
+				getAnnouncements("Temp\Announcements" & $dCount1 & ".htm", "Temp\dataFile" & $dCount1 & ".txt");parses data into txt file
+			Else
+				$dCount = 0
+			EndIf
+
+		WEnd
+		dataCombine($dCount1);function that opens and combines X many data files
 		start()
 		FileClose($aDataHandleWrite)
 		FileClose($aDataHandle)
 		$count1 = 0
 	EndIf
 
+	$anProcess = ProcessList("Notify.exe")
+	if $anProcess[0][0] = 0 then
+		TraySetState(8) ;stops flash if no notifications are being displayed
+	EndIf
+
 	Sleep(1000)
 	$count1 = $count1 + 1
+	if @error Then errorCode(0201)
 WEnd
 
-
-Func start()
+Func start() ;error code 04
+	$aDataHandle = FileOpen("Temp\dataFile.txt")
+	if @error Then errorCode(0401)
 	$aDataBuffer = FileReadLine($aDataHandle, 1); read first line to see if theres an announcements
-	$AnnouncementLogHandleRead = FileOpen("Temp\DisplayedAnnouncements.log", 8)
-	$AnnouncementLogHandleWrite = FileOpen("Temp\DisplayedAnnouncements.log", 9)
+	if @error Then errorCode(0402)
+	$AnnouncementLogHandleRead = FileOpen("Temp\Displayed.log", 8)
+	if @error Then errorCode(0403)
+	$AnnouncementLogHandleWrite = FileOpen("Temp\Displayed.log", 9)
+	if @error Then errorCode(0404)
 	If $aDataBuffer = "" Then ;start while to read data if not empty
 		$loop = 0
 	Else
 		$loop = 1
 		$count = 1
 		$AnnouncementLog = FileRead($AnnouncementLogHandleRead)
+		if @error Then errorCode(0405)
 		While $loop
 			$aDataID = FileReadLine($aDataHandle, $count)
+			;if @error Then errorCode(0406)
 			$count = $count + 1;2
 			$aDataAuthor = FileReadLine($aDataHandle, $count)
+			;if @error Then errorCode(0407)
 			$count = $count + 1;3
 			$aDataDate = FileReadLine($aDataHandle, $count)
+			;if @error Then errorCode(0408)
 			$count = $count + 1;4
 			$aDataText = FileReadLine($aDataHandle, $count)
+			;if @error Then errorCode(0409)
 			$count = $count + 1;5
-
-			;$aDataIDSplit = StringSplit($aDataID, "-")
-			;MsgBox( 1, "", $aDataID)
-			;MsgBox( 1, "", $AnnouncementLog)
 			$AnnouncementLogCheck = StringInStr($AnnouncementLog, $aDataID)
-			;MsgBox( 1, "DEBUG", $aDataID & @CRLF & $aDataID)
-			;MsgBox( 1, "DEBUG", $AnnouncementLogCheck)
 			If $aDataID = "" Then
 				$loop = 0
 				$AnnouncementLogCheck = ""
 				$AnnouncementLog = ""
 			Else
 				If $AnnouncementLogCheck = 0 Then ;check to see if notification has already been displayed for thsi announcement
-					If FileReadLine($aDataHandle, $count) = "" Then ;no more notifications??
+					If FileReadLine($aDataHandle, $count) = "" Then ;no more notifications??,,,count reads next data packet (line 5) in file
+						;if @error Then errorCode(0410) ;displays error from reading blank line
 						$loop = 0
 						$AnnouncementLogCheck = ""
 						$AnnouncementLog = ""
-
+						;MsgBox( 1, "DEBUG 140", "HERE" )
 					EndIf
-					FileWriteLine($AnnouncementLogHandleWrite, $aDataID)
-					Notify($aDataAuthor & " -- " & $aDataDate, $aDataText)
 
+					FileWriteLine($AnnouncementLogHandleWrite, $aDataID)
+					if @error Then errorCode(0411)
+					Notify("Announcement:" & @CRLF & $aDataAuthor & " -- " & $aDataDate, $aDataText)
+					;MsgBox( 1, "DEBUG 144", "HERE" )
+				Else
+					debug("Got notification but already displayed: " & $adataID)
 				EndIf
 			EndIf
 		WEnd
@@ -138,48 +179,79 @@ Func start()
 
 EndFunc   ;==>start
 
-Func dataCombine($fileCount)
-Local $aDataHandle1 = FileOpen("Temp\dataFile1.txt")
-Local $aDataHandle2 = FileOpen("Temp\dataFile2.txt")
-Local $aDataHandle3 = FileOpen("Temp\dataFile3.txt")
-Local $aDataHandle4 = FileOpen("Temp\dataFile4.txt")
+Func dataCombine($fileCount) ;error code 05
+	$dcCountWhile = 1
+	$dcCount = 0
+	While $dcCountWhile
+		$dcCount = $dcCount + 1
+		If $dcCount = $fileCount Then
+			$dcCountWhile = 0
+		Else
+			$aDataHandle = FileOpen("Temp\dataFile" & $dcCount & ".txt")
+			if @error Then errorCode(0501)
+			$aDataRead = FileRead($aDataHandle)
+			if @error Then errorCode(0502)
+			FileWrite($aDataHandleWrite, $aDataRead)
+			if @error Then errorCode(0503)
+			FileClose($aDataHandle)
+		EndIf
+	WEnd
+EndFunc   ;==>dataCombine
 
-$aDataRead1 = FileRead( $aDataHandle1 )
-$aDataRead2 = FileRead( $aDataHandle2 )
-$aDataRead3 = FileRead( $aDataHandle3 )
-$aDataRead4 = FileRead( $aDataHandle4 )
+Func Notify($Title, $Text) ;error code 06
+	if $s_cOn = "1" Then ;if computer notifications are on
+		debug("Displaying Notification: " & $adataID)
+		ShellExecute(@ScriptDir & "\Notify.exe", '"' & $Title & '"' & " " & '"' & $Text & '"' & " " & '"-0"' & " " & '"' & "GC=7EBEE9 BF=1000 SC=200" & '"')
+		TraySetState(4);start flash
+		;syntax(quotes required): Notify.exe "Title" "Message" "-0(means permanant until clicked)" "GC=(Background Color) BF=(Border Flash)"
+		if @error Then errorCode(0601)
+		Sleep(100) ;required for notify program
 
-
-$aDataRead = FileRead( $aDataHandleWrite )
-$aDataRead = $aDataRead1 & $aDataRead2 & $aDataRead3 & $aDataRead4
-FileWrite( $aDataHandleWrite, $aDataRead )
-
-FileClose( $aDataHandle1 )
-FileClose( $aDataHandle2 )
-FileClose( $aDataHandle3 )
-FileClose( $aDataHandle4 )
-
-EndFunc
-
-Func Notify($Title, $Text)
-	_Notify_Set(0, Default, 0x7EBEE9, "Arial", True, 750, 250)
-	_Notify_Show("LCN.ico", $Title, $Text)
+	EndIf
 EndFunc   ;==>Notify
 
-Func getRawHtml()
-	;RunWait( "1st_Final_step.bat" )
-	;$classID = ""
-	;MsgBox(1, "1", $classID)
-	;MsgBox( 1, "DEBUG", $ENG & @CRLF & $PSY & @CRLF & $PHI & @CRLF & $MAT & @CRLF & $sUsername & @CRLF & $sPassword )
-	ShellExecuteWait(@ScriptDir & "\Fetch_Announcements.bat", $PSY & " " & $ENG & " " & $MAT & " " & $PHI & " " & $sUsername & " " & $sPassword, "", "", @SW_HIDE)
+Func getRawHtml() ;error code 03'
+	if $s_f_mOn = "1" Then
+		;execute main forum script
+		debug("Getting Main Forum posts from LC")
+	EndIf
+	if $s_Ln_aOn = "1" Then
+		debug("Getting Announcements from LC")
+		CheckInternet()
+		ShellExecuteWait(@ScriptDir & "\Fetch_Announcements.bat", $sUsername & " " & $sPassword, "", "", @SW_HIDE)
+		If @error Then errorCode(0301)
+		If not FileExists("Temp\Announcements1.htm") Then
+			debug("Either incorrect user or pass, or no class ID's")
+			$setup = MsgBox( 4, "LCN", "-Error- Either incorrect username or password, or you did not get class ID's" &@CRLF& "You must run setup again for program to work!2 Run?")
+			If $setup = "6" Then
+				debug("Running LCN Setup")
+				RunWait("LCN_Gui.exe")
+				getRawHtml() ;run this function again
+			Else
+				debug("Exiting!")
+				Exit
+			EndIf
+		EndIf
 
+
+	EndIf
+	if $s_f_iOn = "1" Then
+		;execute idividual forum script
+		debug("Getting Individual Forum posts from LC")
+	EndIf
+	if $s_w_On = "1" Then
+		;class wall
+		debug("Getting Class Wall posts from LC")
+	EndIf
 EndFunc   ;==>getRawHtml
 
-Func getAnnouncements($htmFile, $dataFile)
+Func getAnnouncements($htmFile, $dataFile) ;error code 07
 	$Announcements = FileOpen($htmFile) ;open announcements file
-	;$tOpenAnnouncements = FileOpen( "Temp\tAnnouncements.htm", 10 ) ;open temp txt for data processing
+	if @error Then errorCode(0701)
 	$txtOpenAnnouncements = FileOpen($dataFile, 10) ;open file for finished processing
+	if @error Then errorCode(0702)
 	$R_Announcements = FileRead($Announcements)
+	if @error Then errorCode(0703)
 
 	$aBlocks = _StringBetween2($R_Announcements, "<table", "</table>") ;find table of info
 	;MsgBox(1, "Debug2", $aBlocks)
@@ -193,8 +265,7 @@ Func getAnnouncements($htmFile, $dataFile)
 	While $loop
 
 		If $a1 = 0 Then
-			;MsgBox(1, "IF", "ERROR No Announcements")
-			;Exit
+			;MsgBox(1, "DEBUG", "No Announcements")
 			Return 0
 			ExitLoop
 		EndIf
@@ -209,9 +280,6 @@ Func getAnnouncements($htmFile, $dataFile)
 		$a2 = StringInStr($aBlocksSplit, "</tr>") ;find irrelevant data that will get in the way
 		$aBlocksSplit = StringTrimLeft($aBlocksSplit, $a2) ;deletes data
 
-		;$a2 = StringInStr( $aBlocksSplit , "</td>")
-		;$aBlocksSplit = StringTrimLeft( $aBlocksSplit, $a2 )
-
 		If StringInStr($aBlocksSplit, "<tr  id=") = 0 Then $loop = 0 ;find if there are more annoucments
 
 		;MsgBox(1, "", $aAuthor)
@@ -219,10 +287,15 @@ Func getAnnouncements($htmFile, $dataFile)
 		;MsgBox(1, "", $aID)
 		;MsgBox(1, "", $aText)
 
+		if @error Then errorCode(0706)
 		FileWriteLine($txtOpenAnnouncements, $aID)
+		if @error Then errorCode(0705)
 		FileWriteLine($txtOpenAnnouncements, $aAuthor)
+		if @error Then errorCode(0706)
 		FileWriteLine($txtOpenAnnouncements, $aDate)
+		if @error Then errorCode(0707)
 		FileWriteLine($txtOpenAnnouncements, $aText)
+		if @error Then errorCode(0708)
 
 		;_ArrayDisplay($String)
 	WEnd
@@ -237,26 +310,189 @@ Func _StringBetween2($s, $from, $to)
 	Return StringMid($s, $x, $y)
 EndFunc   ;==>_StringBetween2
 
-Func load()
+Func load() ;Error code number 01
+	$confHandle = FileOpen("LCN.conf")
+	debug("Loading config file")
 	Local $readBuffer = ""
 	$random = FileReadLine($confHandle, 8) ;random
-	$readBuffer = FileReadLine($confHandle, 2) ;username
-	;MsgBox(1 ,"DEBUGGER",$readBuffer)
-	$sUsername = _AesDecrypt($random, $readBuffer)
-	$sUsername = BinaryToString($sUsername)
-	;$sUsername = $readBuffer
-	;MsgBox(1 ,"DEBUGGER",$sUsername)
-	$readBuffer = FileReadLine($confHandle, 3) ;pass
-	;MsgBox(1 ,"DEBUGGER",$readBuffer)
-	$sPassword = _AesDecrypt($random, $readBuffer)
-	$sPassword = BinaryToString($sPassword)
-	;$sPassword = $readBuffer
-	;MsgBox(1 ,"DEBUGGER",$sPassword)
+	if @error Then errorCode(0101)
 
-	$sFrequency = FileReadLine($confHandle, 4)
-	;if $sFrequency = "" Then $sFrequency = "1"
-	$s_cOn = FileReadLine($confHandle, 5)
-	$s_eOn = FileReadLine($confHandle, 6)
-	$s_Ln_aOn = FileReadLine($confHandle, 7)
+	$readBuffer = FileReadLine($confHandle, 2) ;username
+	;if @error Then errorCode(0102)
+	$sUsername = _AesDecrypt($random, $readBuffer)
+	;if @error Then errorCode(0103)
+	$sUsername = BinaryToString($sUsername)
+	if @error Then errorCode(0104)
+
+	$readBuffer = FileReadLine($confHandle, 3) ;pass
+	;if @error Then errorCode(0105)
+	$sPassword = _AesDecrypt($random, $readBuffer)
+	;if @error Then errorCode(0106)
+	$sPassword = BinaryToString($sPassword)
+	if @error Then errorCode(0107)
+
+	$sFrequency = FileReadLine($confHandle, 4) ;Frequency
+	if @error Then errorCode(0108)
+	$s_cOn = FileReadLine($confHandle, 5) ;computer contifications
+	if @error Then errorCode(0109)
+	$s_f_mOn = FileReadLine($confHandle, 6) ;notifiy for main forum
+	if @error Then errorCode(0110)
+	$s_Ln_aOn = FileReadLine($confHandle, 7) ;notify for announcements
+	if @error Then errorCode(0111)
+	$s_f_iOn = FileReadLine($confHandle, 9) ;notify for individual forum
+	if @error Then errorCode(0112)
+	$s_w_On = FileReadLine($confHandle, 10) ;class wall
+	if @error Then errorCode(0113)
+	$s_a_lOn = FileReadLine($confHandle, 11) ;debug logging
+	if @error Then errorCode(0114)
 	FileClose($confHandle)
+
+	;debug($sUsername & $sPassword & $sFrequency & $s_cOn & $s_f_mOn & $s_Ln_aOn & $s_f_iOn & $s_w_On & $s_a_lOn)
+
 EndFunc   ;==>load
+
+Func getClassID() ;error code 08
+	debug("Getting Class ID's")
+	ShellExecuteWait(@ScriptDir & "\Fetch_ClassID.bat", $sUsername & " " & $sPassword, "", "", @SW_HIDE)
+	if @error Then errorCode(0801)
+	$cID_MainReadHandle = FileOpen("Temp\Main_Page.htm")
+	$cID_ClassesIDWriteHandle = FileOpen("ClassesID.txt", 2) ;write mode, overwrites data
+	$cID_ClassesNameWriteHandle = FileOpen("ClassesName.txt", 2) ;write mode, overwrites data
+	if @error Then errorCode(0802)
+
+	$cID_MainRead = FileRead($cID_MainReadHandle)
+	if @error Then errorCode(0803)
+
+	$cID_WhileCount = 1
+	While $cID_WhileCount
+
+		$cID_IDBlock = _StringBetween2($cID_MainRead, 'input class="allClassCheck" checked="checked" type="checkbox" name="allClassCheck" value="', '" /></span>') ;find table of info
+
+		;MsgBox(1, "DEBUG 14", $cID_IDBlock)
+
+		FileWriteLine($cID_ClassesIDWriteHandle, $cID_IDBlock) ;write data into processing file
+		$cID_IDBlockNumber = StringInStr($cID_MainRead, 'input class="allClassCheck" checked="checked" type="checkbox" name="allClassCheck" value="') ;find where actual info starts
+		$cID_IDBlockNumber = $cID_IDBlockNumber - 1 ;removes data 1 line before the ID
+		if @error Then errorCode(0804)
+		;MsgBox(1, "DEBUG 20", $cID_IDBlockNumber)
+
+		$cID_MainRead = StringTrimLeft($cID_MainRead, $cID_IDBlockNumber) ;trim used data that will get in the way
+
+		$cID_NameBlock = _StringBetween2($cID_MainRead, '" /></span> <label>', '</label>') ;finds class name
+
+		;MsgBox(1, "DEBUG 26", $cID_NameBlock)
+
+		FileWriteLine($cID_ClassesNameWriteHandle, $cID_NameBlock) ;write data into processing file
+		$cID_NameBlockNumber = StringInStr($cID_MainRead, '" /></span> <label>') ;find where actual info starts
+		$cID_MainRead = StringTrimLeft($cID_MainRead, $cID_NameBlockNumber) ;trim used data that will get in the way
+		if @error Then errorCode(0805)
+		;MsgBox(1, "DEBUG 32", $cID_MainRead)
+
+		$cID_IDBlockTemp = _StringBetween2($cID_MainRead, 'input class="allClassCheck" checked="checked" type="checkbox" name="allClassCheck" value="', '" /></span>') ;find table of info
+		if not StringInStr( $cID_IDBlockTemp, @CRLF ) = 0 Then
+			$cID_WhileCount = 0
+			FileClose( $cID_ClassesIDWriteHandle )
+			FileClose( $cID_ClassesNameWriteHandle )
+			FileClose( $cID_MainReadHandle )
+		EndIf
+	WEnd
+if @error Then errorCode(0806)
+EndFunc
+
+Func debug($TempLogMsg)
+	if $s_a_lOn = 1 or $DebugOverride = 1 Then
+		_FileWriteLog($DebugLog, $TempLogMsg)
+	EndIf
+endfunc
+
+Func errorCode($TempErrorCode)
+	debug("--Error-- Internal ErrorCode:"&$TempErrorCode)
+	;function load() = 01
+	;main while = 02
+	;function getRawHtml() = 03
+	;function start() = 04
+	;function dataCombine() = 05
+	;function notify() = 06
+	;function getAnnouncements() = 07
+	;function getClassID() = 08
+	;function checkinternet() = 09
+	;start = 10
+
+	Local $ErrorID1 = StringTrimRight($TempErrorCode, 2) ;strips last two characters leaving error id
+	Local $ErrorID2 = StringTrimLeft($TempErrorCode, 2) ;strips main ID leaving last two characters
+
+	If $ErrorID1 = 01 Then
+		;do some error processing
+	ElseIf $ErrorID1 = 02 Then
+		;;
+	ElseIf $ErrorID1 = 03 Then
+		;;
+	ElseIf $ErrorID1 = 04 Then
+		;;
+	ElseIf $ErrorID1 = 05 Then
+		;;
+	EndIf
+
+	$TempErrorCode = ""
+	$ErrorID1 = ""
+	$errorID2 = ""
+EndFunc
+
+Func CheckInternet() ;error Code 09
+	;This function checks for an internet connection
+	;Stalls program until internet is found
+	$internetWhile = 1
+
+	While $internetWhile
+		sleep(10)
+		ping( "www.Google.com" );checks for internet
+		if @error Then ;if no internet
+			errorCode(0901) ;set error
+			TrayTip( "LoudCloud Notifier", "Check Internet connection will retry in 60 seconds", 30, 16)
+			Sleep(60000) ;wait 60 seconds
+		Else
+			$internetWhile = 0
+		EndIf
+
+	WEnd
+EndFunc
+
+Func ExitScript()
+    Exit
+EndFunc   ;==>ExitScript
+
+Func showAbout()
+	#include <ButtonConstants.au3>
+	#include <GUIConstantsEx.au3>
+	#include <StaticConstants.au3>
+	#include <WindowsConstants.au3>
+	#region ### START Koda GUI section ### Form=c:\users\daniel\desktop\scripts_stuff\batch\curl\testing_folder\autoit\about.kxf
+	$Form1_1 = GUICreate("About", 323, 240, 417, 208)
+	$GroupBox1 = GUICtrlCreateGroup("", 8, 8, 305, 185)
+	$Label1 = GUICtrlCreateLabel("LoudCloud Notifier (LCN)", 80, 24, 151, 20)
+	GUICtrlSetFont(-1, 10, 400, 0, "MS Sans Serif")
+	$Label2 = GUICtrlCreateLabel("Version: ", 232, 56, 70, 17)
+	$Label3 = GUICtrlCreateLabel("Created By: Daniel Blevins", 16, 56, 129, 17)
+	$Label4 = GUICtrlCreateLabel("Contact me: DanielBlevinsLCN at gmail.com", 48, 104, 211, 17)
+	GUICtrlCreateGroup("", -99, -99, 1, 1)
+	$Button1 = GUICtrlCreateButton("&OK", 116, 208, 75, 25, 0)
+	GUISetState(@SW_SHOW)
+	#endregion ### END Koda GUI section ###
+
+	While 1
+		$nMsg = GUIGetMsg()
+		Switch $nMsg
+			Case $GUI_EVENT_CLOSE
+				Exit
+
+			Case $Button1
+				GUIDelete($Form1_1)
+		EndSwitch
+	WEnd
+EndFunc   ;==>showAbout
+
+Func tSetup()
+	debug("Launching Setup from Tray")
+	RunWait("LCN_Gui.exe")
+	debug("Setup Closed")
+EndFunc

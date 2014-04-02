@@ -7,9 +7,7 @@ set /a "count = 0"
 
 if "%*"=="" (
 	endlocal
-	echo Error need username and password
-	pause
-	Exit /B
+	Exit
 ) else (
 	set uName=%1
 	set pWord=%2
@@ -43,5 +41,3 @@ goto:eof
 )
 
 REM del LC_Cookie
-
-
