@@ -1,3 +1,6 @@
+#Region ;**** Directives created by AutoIt3Wrapper_GUI ****
+#AutoIt3Wrapper_Icon=LCN.ico
+#EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
 #include <ButtonConstants.au3>
 #include <EditConstants.au3>
 #include <GUIConstantsEx.au3>
@@ -5,10 +8,10 @@
 #include <TabConstants.au3>
 #include <WindowsConstants.au3>
 #include <Crypt.au3>
-#include "Include\AES.au3"
 #include <Array.au3>
 #include <ProgressConstants.au3>
 
+#RequireAdmin
 TraySetIcon("LCN.ico")
 
 ;sets all settings off
@@ -48,9 +51,12 @@ $Loading = ""
 $aPassword = ""
 $aUsername = ""
 $aFrequency = ""
+$AESkey = ""
 
-$random = Random(5, 20, 1) ;create a random number to encrypt password & usernam
-;$random = "12345"
+$TempDir = @AppDataDir&"\LoudCloud_Notifier\"
+;$appData = @AppDataDir
+
+$random = $AESkey
 
 ;if a config file is found it will overwrite above settings
 load() ;loads LCN.conf
@@ -205,9 +211,17 @@ While 1
 			$V_ABOUT = 1
 			showAbout()
 		Case $B_Get
-			loadClassIDGUI()
-			getClassID()
-			loadClassID(1)
+			if GUICtrlRead($UserName) = "" or GUICtrlRead($Password) = "" Then
+				MsgBox( 0, "LCN", "Enter Username and password!")
+			Else
+				loadClassIDGUI()
+				if CheckUserPass() = "1" Then
+					getClassID()
+					loadClassID(1)
+				Else
+					exitIDGUI()
+				EndIf
+			EndIf
 	EndSwitch
 WEnd
 
@@ -249,10 +263,12 @@ Func save()
 	If $aUsername = "" Or $aPassword = "" Then
 		MsgBox(0, "LoudCloud Notifier", "Error! Please enter Username and Password")
 	Else
-		Local $pEncrypted = _AesEncrypt($random, $aPassword)
-		Local $uEncrypted = _AesEncrypt($random, $aUsername)
+
+		_Crypt_Startup()
+		Local $pEncrypted = _Crypt_EncryptData($aPassword,$random, $CALG_AES_256)
+		Local $uEncrypted =	_Crypt_EncryptData($aUsername, $random, $CALG_AES_256)
 		if @error Then MsgBox( 0, "", "ERROR encrypting")
-		$LCNconfHandle = FileOpen("LCN.conf", 2 + 8)
+		$LCNconfHandle = FileOpen($TempDir&"LCN.conf", 2 + 8)
 		FileWriteLine($LCNconfHandle, "----LCN Config do not edit unless you know what you are doing!!!!!----")
 
 		;$pEncrypted = $Password
@@ -267,29 +283,28 @@ Func save()
 		FileWriteLine($LCNconfHandle, $V_cOn) ;5
 		FileWriteLine($LCNconfHandle, $V_Ln_f_mOn) ;6
 		FileWriteLine($LCNconfHandle, $V_Ln_aOn) ;7
-		FileWriteLine($LCNconfHandle, $random) ;8
+		FileWriteLine($LCNconfHandle, @CRLF) ;8
 		FileWriteLine($LCNconfHandle, $V_LN_f_iOn) ;9
 		FileWriteLine($LCNconfHandle, $V_LN_w_On) ;10
 		FileWriteLine($LCNconfHandle, $V_LN_a_lOn) ;11
 		FileClose($LCNconfHandle)
 		;Exit
 
-		$LCNconfHandle = FileOpen("LCN.conf")
+		$LCNconfHandle = FileOpen($TempDir&"LCN.conf")
 		$uReadBuffer = FileReadLine($LCNconfHandle, 2);username
 		$pReadBuffer = FileReadLine($LCNconfHandle, 3) ;pass
-		$rReadBuffer = FileReadLine($LCNconfHandle, 8)
+		$rReadBuffer = $random
 
-		$sEnUsername = _AesDecrypt($rReadBuffer, $uReadBuffer)
-		$sEnUsername = BinaryToString($sEnUsername)
+		$sEnUsername = BinaryToString(_Crypt_DecryptData($uReadBuffer,$rReadBuffer,$CALG_AES_256))
+		$sEnPassword = BinaryToString(_Crypt_DecryptData($pReadBuffer,$rReadBuffer,$CALG_AES_256))
+		_Crypt_Shutdown()
 
-		$sEnPassword = _AesDecrypt($rReadBuffer, $pReadBuffer)
-		$sEnPassword = BinaryToString($sEnPassword)
 		FileClose($LCNconfHandle)
 
-		if $sEnPassword = $aPassword and $sEnUsername Then
+		if $sEnPassword = $aPassword and $sEnUsername = $aUsername Then
 			Exit
 		Else
-			FileDelete( "LCN.conf" )
+			FileDelete( $TempDir&"LCN.conf" )
 			MsgBox(0, "LCN", "Error! Unable to save please enter username and password again!")
 			GUICtrlSetData($UserName, "")
 			GUICtrlSetData($Password, "")
@@ -299,23 +314,18 @@ Func save()
 EndFunc   ;==>save
 
 Func load()
-	$exist = FileExists("LCN.conf")
+	$exist = FileExists($TempDir&"LCN.conf")
 	Local $readBuffer = ""
 	If $exist Then
-		$LCNconfHandleLoad = FileOpen("LCN.conf")
-		$r_random = FileReadLine($LCNconfHandleLoad, 8) ;random
-		$random = $r_random
-		;MsgBox(1 ,"DEBUGGER",$r_random)
+		$LCNconfHandleLoad = FileOpen($TempDir&"LCN.conf")
+		;$r_random = FileReadLine($LCNconfHandleLoad, 8) ;random
+		;$random = $r_random
 		$readBuffer = FileReadLine($LCNconfHandleLoad, 2) ;username
-		;MsgBox(1 ,"DEBUGGER",$readBuffer)
-		$sUsername = _AesDecrypt($r_random, $readBuffer)
-		$sUsername = BinaryToString($sUsername)
-		;$sUsername = $readBuffer
-		;MsgBox(1 ,"DEBUGGER",$sUsername)
+		_Crypt_Startup()
+		$sUsername = BinaryToString(_Crypt_DecryptData($readBuffer,$random, $CALG_AES_256))
 		$readBuffer = FileReadLine($LCNconfHandleLoad, 3) ;pass
-		;MsgBox(1 ,"DEBUGGER",$readBuffer)
-		$sPassword = _AesDecrypt($r_random, $readBuffer)
-		$sPassword = BinaryToString($sPassword)
+		$sPassword = BinaryToString(_Crypt_DecryptData($readBuffer,$random, $CALG_AES_256))
+		_Crypt_Shutdown()
 		;$sPassword = $readBuffer
 		;MsgBox(1 ,"DEBUGGER",$sPassword)
 
@@ -332,13 +342,13 @@ Func load()
 EndFunc   ;==>load
 
 Func loadClassID($loadingGUI = 0)
-	If FileExists("ClassesID.txt") Then
+	If FileExists($TempDir&"ClassesID.txt") Then
 		If $loadingGUI = 1 Then
 			GUICtrlSetData($P_Load, 95)
 			GUICtrlSetData($L_Load, "Preparing data...")
 		EndIf
-		$aID_ClassesIDReadHandle = FileOpen("ClassesID.txt")
-		$aID_ClassesNameReadHandle = FileOpen("ClassesName.txt")
+		$aID_ClassesIDReadHandle = FileOpen($TempDir&"ClassesID.txt")
+		$aID_ClassesNameReadHandle = FileOpen($TempDir&"ClassesName.txt")
 		$aID_countWhile = 1
 		$aID_count = 1
 		While $aID_countWhile
@@ -351,6 +361,7 @@ Func loadClassID($loadingGUI = 0)
 					GUICtrlSetData($L_Load, "Done...")
 					Sleep(100)
 					GUIDelete($Loading)
+					AutoItSetOption("GUIOnEventMode", 0)
 				EndIf
 			Else
 				;if $aID_IDbuffer = "" or $aID_IDbuffer = "" Then ExitLoop ;if file is empty
@@ -363,6 +374,7 @@ Func loadClassID($loadingGUI = 0)
 EndFunc   ;==>loadClassID
 
 Func loadClassIDGUI()
+	AutoItSetOption("GUIOnEventMode", 1)
 	$Loading = GUICreate("Loading", 298, 121, 457, 297)
 	$P_Load = GUICtrlCreateProgress(8, 56, 278, 25, $PBS_SMOOTH)
 	$L_LoadWait = GUICtrlCreateLabel("Loading...Please Wait", 72, 16, 158, 22)
@@ -370,11 +382,18 @@ Func loadClassIDGUI()
 	$L_Load = GUICtrlCreateLabel("STARTING", 24, 96, 243, 17, $SS_CENTER)
 	GUICtrlSetData(-1, "Downloading Class ID's from LC...")
 	GUISetState(@SW_SHOW)
+	GUICtrlSetOnEvent($GUI_EVENT_CLOSE, "exitIDGUI")
 
 EndFunc   ;==>loadClassIDGUI
 
+Func exitIDGUI()
+	GUIDelete( $Loading )
+	FileDelete($TempDir&"ClassesID.txt")
+	FileDelete($TempDir&"ClassesName.txt")
+EndFunc
+
 Func radiobutons() ;loads save settings
-	$exist = FileExists("LCN.conf")
+	$exist = FileExists($TempDir&"LCN.conf")
 	If $exist Then
 		If $s_cOn = 1 Then
 			GUICtrlSetState($cOn, $GUI_CHECKED)
@@ -421,23 +440,6 @@ Func radiobutons() ;loads save settings
 	EndIf
 EndFunc   ;==>radiobutons
 
-Func StringEncrypt($fEncrypt, $sData, $sKey)
-	_Crypt_Startup() ; Start the Crypt library.
-	Local $sReturn = ''
-	If $fEncrypt Then ; If the flag is set to True then encrypt, otherwise decrypt.
-
-		Local $hKey = _Crypt_DeriveKey($sKey, $CALG_AES_256)
-		Local $sReturn = _Crypt_EncryptData($sData, $hKey, $CALG_USERKEY)
-		_Crypt_DestroyKey($hKey)
-	Else
-		Local $hKey = _Crypt_DeriveKey($sKey, $CALG_AES_256)
-		Local $sReturn = BinaryToString(_Crypt_DecryptData(Binary($sData), $hKey, $CALG_USERKEY))
-		_Crypt_DestroyKey($hKey)
-	EndIf
-	_Crypt_Shutdown() ; Shutdown the Crypt library.
-	Return $sReturn
-EndFunc   ;==>StringEncrypt
-
 Func getClassID()
 	GUICtrlSetData($P_Load, 15)
 	Sleep(10)
@@ -448,9 +450,9 @@ Func getClassID()
 	ShellExecuteWait(@ScriptDir & "\Fetch_ClassID.bat", $cID_Username & " " & $cID_Password, "", "", @SW_HIDE)
 	GUICtrlSetData($P_Load, 40)
 	GUICtrlSetData($L_Load, "Parsing data...")
-	$cID_MainReadHandle = FileOpen("Temp\Main_Page.htm")
-	$cID_ClassesIDWriteHandle = FileOpen("ClassesID.txt", 2) ;write mode, overwrites data
-	$cID_ClassesNameWriteHandle = FileOpen("ClassesName.txt", 2) ;write mode, overwrites data
+	$cID_MainReadHandle = FileOpen($TempDir&"Main_Page.htm")
+	$cID_ClassesIDWriteHandle = FileOpen($TempDir&"ClassesID.txt", 2) ;write mode, overwrites data
+	$cID_ClassesNameWriteHandle = FileOpen($TempDir&"ClassesName.txt", 2) ;write mode, overwrites data
 	If @error Then MsgBox(0, "", "ERROR")
 	$cID_MainRead = FileRead($cID_MainReadHandle)
 	GUICtrlSetData($P_Load, 45)
@@ -497,3 +499,20 @@ Func _StringBetween2($s, $from, $to)
 	$y = StringInStr(StringTrimLeft($s, $x), $to)
 	Return StringMid($s, $x, $y)
 EndFunc   ;==>_StringBetween2
+
+Func CheckUserPass()
+	$check_Username = GUICtrlRead($UserName)
+	$check_Password = GUICtrlRead($Password)
+
+	ShellExecuteWait( "CheckUserPass.bat", $check_Username & " " & $check_Password, "", "runas", @SW_HIDE)
+	$check_count = 1
+	$check_fileHandle = FileOpen($TempDir&"CheckUserPass.htm")
+	$check_fileRead = FileReadLine($check_fileHandle, 1)
+	if $check_fileRead = "" Then
+		MsgBox( 0, "LCN", "Username or Password incorrect!")
+		Return "0"
+	Else
+		Return "1"
+	EndIf
+EndFunc
+

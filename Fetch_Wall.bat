@@ -7,7 +7,9 @@ set /a "count = 0"
 
 if "%*"=="" (
 	endlocal
-	Exit
+	echo Error need username and password
+	pause
+	Exit /B
 ) else (
 	set uName=%1
 	set pWord=%2
@@ -35,9 +37,12 @@ endlocal
 exit /B
 
 :getData
-curl-7.29.0\curl.exe -G "https://lc-trad1.gcu.edu/learningPlatform/user/users.lc" -b "Temp\LC_Cookie" -d "operation=loggedIn&classId=%classID%#/learningPlatform/announcement/announcement.lc?operation=searchClassAnnouncements&c=prepareClassAnnouncement&t=messagesMenuOption&tempDate=%UNIX_TIME%" -k > "%APPDATA%\LoudCloud_Notifier\Announcements_Page%count%.htm"
-curl-7.29.0\curl.exe -G "https://lc-trad1.gcu.edu/learningPlatform/announcement/announcement.lc" -b "Temp\LC_Cookie" -d "operation=searchClassAnnouncements&c=prepareClassAnnouncement&t=messagesMenuOption&tempDate=%UNIX_TIME%" -k > "%APPDATA%\LoudCloud_Notifier\Announcements%count%.htm"
+curl-7.29.0\curl.exe -G "https://lc-trad1.gcu.edu/learningPlatform/user/users.lc" -b "%APPDATA%\LoudCloud_Notifier\LC_Cookie" -d "operation=loggedIn&classId=%classID%#/learningPlatform/announcement/announcement.lc?operation=searchClassAnnouncements&c=prepareClassAnnouncement&t=messagesMenuOption&tempDate=%UNIX_TIME%" -k > "%APPDATA%\LoudCloud_Notifier\Wall_Page%count%.htm"
+curl-7.29.0\curl.exe -G "https://lc-trad1.gcu.edu/learningPlatform/wall/classwall.lc" -b "%APPDATA%\LoudCloud_Notifier\LC_Cookie" -d "operation=getClassWall&t=connectMenuOption&classId=%classID%&c=prepareClassWall&tempDate=%UNIX_TIME%" -k > "%APPDATA%\LoudCloud_Notifier\Wall%count%.htm"
+
 goto:eof
 )
 
 REM del LC_Cookie
+
+

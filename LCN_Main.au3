@@ -1,3 +1,6 @@
+#Region ;**** Directives created by AutoIt3Wrapper_GUI ****
+#AutoIt3Wrapper_Icon=LCN.ico
+#EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
 #cs ----------------------------------------------------------------------------
 
 	AutoIt Version: 3.3.8.1
@@ -11,9 +14,10 @@
 #ce ----------------------------------------------------------------------------
 
 #include <Array.au3>
-#include "Include\AES.au3"
+#include <Crypt.au3>
 #include <File.au3>
 
+#RequireAdmin
 Opt("TrayAutoPause", 0)
 Opt("TrayMenuMode", 3) ; The default tray menu items will not be shown and items are not checked when selected. These are options 1 and 2 for TrayMenuMode.
 Opt("TrayOnEventMode", 1) ; Enable TrayOnEventMode.
@@ -37,14 +41,14 @@ $s_cOn = ""
 $adataID = ""
 $nCount = 0
 
-$confHandle = FileOpen("LCN.conf") ;load config settings from setup
-$DebugOverride = 0 ;overrides setting in config file good for debugging problems before opening of the conf file
+$TempDir = @AppDataDir&"\LoudCloud_Notifier\"
 
-if $s_a_lOn = 1 or $DebugOverride = 1 Then
-		$DebugLog = FileOpen("Temp\debug.log", 2) ;open log for debugging
-EndIf
+$confHandle = FileOpen($TempDir&"LCN.conf") ;load config settings from setup
+$DebugOverride = 1 ;overrides setting in config file good for debugging problems before opening of the conf file
 
-
+;if $s_a_lOn = 1 or $DebugOverride = 1 Then
+		$DebugLog = FileOpen($TempDir&"debug.log", 2) ;open log for debugging
+;EndIf
 
 debug("Starting Program Advanced script logging")
 if @error Then errorCode(1001)
@@ -54,7 +58,11 @@ If $confHandle = -1 Then
 	$setup = MsgBox(4, "LCN Error", "An error has ccured opening config file. Would you like to run setup?")
 	If $setup = "6" Then
 		debug("Running LCN Setup")
-		RunWait("LCN_Gui.exe")
+		if FileExists( "LCN_Gui.exe" ) Then
+			RunWait("LCN_Gui.exe")
+		Else
+			RunWait("LCN_Gui.au3")
+		EndIf
 		$confHandle = FileOpen("LCN.conf")
 	Else
 		Exit
@@ -76,37 +84,61 @@ EndIf
 
 $sPassword = ""
 $sUsername = ""
+$AESkey = ""
+
+$random = $AESkey
 
 load();loads conf file
 debug("Finished loading config file")
 
-$delay = 60*$sFrequency
+$delay = @HOUR*60
+$delay = $delay+@MIN ;$delay = timestamp in seconds
+$delay = $delay+$sFrequency
 ;$delay = 5 * $sFrequency ;for testing purposes
 $count1 = $delay ;start with counter to max so when program start it will load
 
 While 1 ;main background process; error code 02
 	If $count1 = $delay Then
+		;MsgBox(0,"", $sFrequency)
+		;MsgBox(0, "", $delay)
 		load();loads conf file
 		getRawHtml();runs .bat script to get info from LC
-		$aDataHandleWrite = FileOpen("Temp\dataFile.txt", 10)
-		$aDataHandle = FileOpen("Temp\dataFile.txt")
+		$aDataHandleWrite = FileOpen($TempDir&"dataFile.txt", 10)
+		$aDataHandle = FileOpen($TempDir&"dataFile.txt")
+		$aDataWallHandleWrite = FileOpen($TempDir&"dataWall.txt", 10)
+		$aDataWallHandle = FileOpen($TempDir&"dataWall.txt")
+
 
 		$dCount = 1
 		$dCount1 = 0 ;clears how many files there are
 		While $dCount
 			$dCount1 = $dCount1 + 1
-			If FileExists("Temp\Announcements" & $dCount1 & ".htm") Then
-				getAnnouncements("Temp\Announcements" & $dCount1 & ".htm", "Temp\dataFile" & $dCount1 & ".txt");parses data into txt file
+			If FileExists($TempDir&"Announcements" & $dCount1 & ".htm") Then
+				getAnnouncements($TempDir&"Announcements" & $dCount1 & ".htm", $TempDir&"dataFile" & $dCount1 & ".txt");parses data into txt file
 			Else
 				$dCount = 0
 			EndIf
+
+;~ 			If FileExists($TempDir&"Wall" & $dCount1 & ".htm") Then
+;~ 				getWall($TempDir&"Wall" & $dCount1 & ".htm", $TempDir&"dataWall" & $dCount1 & ".txt");parses data into txt file
+;~ 			Else
+;~ 				$dCount = 0
+;~ 			EndIf
+
 
 		WEnd
 		dataCombine($dCount1);function that opens and combines X many data files
 		start()
 		FileClose($aDataHandleWrite)
 		FileClose($aDataHandle)
+		FileClose($aDataWallHandleWrite)
+		FileClose($aDataWallHandle)
 		$count1 = 0
+		;$delay = 60*60*$sFrequency ;redo incase frequency was changed
+		$delay = @HOUR*60
+		$delay = $delay+@MIN ;$delay = timestamp in seconds
+		$delay = $delay+$sFrequency
+		debug("TimeStamp:"&$delay)
 	EndIf
 
 	$anProcess = ProcessList("Notify.exe")
@@ -114,19 +146,21 @@ While 1 ;main background process; error code 02
 		TraySetState(8) ;stops flash if no notifications are being displayed
 	EndIf
 
-	Sleep(1000)
-	$count1 = $count1 + 1
+	Sleep(100)
+	;$count1 = $count1 + 1
+	$count1 = @HOUR*60
+	$count1 = $count1+@MIN ;$delay = timestamp in minutes ;this counts the current time
 	if @error Then errorCode(0201)
 WEnd
 
 Func start() ;error code 04
-	$aDataHandle = FileOpen("Temp\dataFile.txt")
+	$aDataHandle = FileOpen($TempDir&"dataFile.txt")
 	if @error Then errorCode(0401)
 	$aDataBuffer = FileReadLine($aDataHandle, 1); read first line to see if theres an announcements
-	if @error Then errorCode(0402)
-	$AnnouncementLogHandleRead = FileOpen("Temp\Displayed.log", 8)
+	;if @error Then errorCode(0402) normal error (errors when empty)
+	$AnnouncementLogHandleRead = FileOpen($TempDir&"Displayed.log", 8)
 	if @error Then errorCode(0403)
-	$AnnouncementLogHandleWrite = FileOpen("Temp\Displayed.log", 9)
+	$AnnouncementLogHandleWrite = FileOpen($TempDir&"Displayed.log", 9)
 	if @error Then errorCode(0404)
 	If $aDataBuffer = "" Then ;start while to read data if not empty
 		$loop = 0
@@ -187,7 +221,7 @@ Func dataCombine($fileCount) ;error code 05
 		If $dcCount = $fileCount Then
 			$dcCountWhile = 0
 		Else
-			$aDataHandle = FileOpen("Temp\dataFile" & $dcCount & ".txt")
+			$aDataHandle = FileOpen($TempDir&"dataFile" & $dcCount & ".txt")
 			if @error Then errorCode(0501)
 			$aDataRead = FileRead($aDataHandle)
 			if @error Then errorCode(0502)
@@ -210,7 +244,7 @@ Func Notify($Title, $Text) ;error code 06
 	EndIf
 EndFunc   ;==>Notify
 
-Func getRawHtml() ;error code 03'
+Func getRawHtml() ;error code 03
 	if $s_f_mOn = "1" Then
 		;execute main forum script
 		debug("Getting Main Forum posts from LC")
@@ -218,31 +252,54 @@ Func getRawHtml() ;error code 03'
 	if $s_Ln_aOn = "1" Then
 		debug("Getting Announcements from LC")
 		CheckInternet()
+		TrayTip( "LoudCloud Notifier", "Getting Announcements...", 5, 16)
 		ShellExecuteWait(@ScriptDir & "\Fetch_Announcements.bat", $sUsername & " " & $sPassword, "", "", @SW_HIDE)
 		If @error Then errorCode(0301)
-		If not FileExists("Temp\Announcements1.htm") Then
+		If not FileExists($TempDir&"Announcements1.htm") Then
 			debug("Either incorrect user or pass, or no class ID's")
-			$setup = MsgBox( 4, "LCN", "-Error- Either incorrect username or password, or you did not get class ID's" &@CRLF& "You must run setup again for program to work!2 Run?")
+			$setup = MsgBox( 4, "LCN", "-Error- Either incorrect username or password, or you did not get class ID's" &@CRLF& "You must run setup again for program to work! Run?")
 			If $setup = "6" Then
 				debug("Running LCN Setup")
-				RunWait("LCN_Gui.exe")
+				if FileExists( "LCN_Gui.exe" ) Then
+					RunWait("LCN_Gui.exe")
+				Else
+					RunWait("LCN_Gui.au3")
+				EndIf
 				getRawHtml() ;run this function again
 			Else
 				debug("Exiting!")
 				Exit
 			EndIf
 		EndIf
-
-
 	EndIf
 	if $s_f_iOn = "1" Then
 		;execute idividual forum script
 		debug("Getting Individual Forum posts from LC")
 	EndIf
-	if $s_w_On = "1" Then
-		;class wall
-		debug("Getting Class Wall posts from LC")
-	EndIf
+;~ 	if $s_w_On = "1" Then
+;~ 		debug("Getting Class Wall posts from LC")
+;~ 		CheckInternet()
+;~ 		TrayTip( "LoudCloud Notifier", "Getting Class Wall Posts...", 5, 16)
+;~ 		ShellExecuteWait(@ScriptDir & "\Fetch_Wall.bat", $sUsername & " " & $sPassword, "", "", @SW_HIDE)
+;~ 		If @error Then errorCode(0301)
+;~ 		If not FileExists($TempDir&"Announcements1.htm") Then
+;~ 			debug("Either incorrect user or pass, or no class ID's")
+;~ 			$setup = MsgBox( 4, "LCN", "-Error- Either incorrect username or password, or you did not get class ID's" &@CRLF& "You must run setup again for program to work! Run?")
+;~ 			If $setup = "6" Then
+;~ 				debug("Running LCN Setup")
+;~ 				if FileExists( "LCN_Gui.exe" ) Then
+;~ 					RunWait("LCN_Gui.exe")
+;~ 				Else
+;~ 					RunWait("LCN_Gui.au3")
+;~ 				EndIf
+;~ 				getRawHtml() ;run this function again
+;~ 			Else
+;~ 				debug("Exiting!")
+;~ 				Exit
+;~ 			EndIf
+;~ 		EndIf
+
+;~ 	EndIf
 EndFunc   ;==>getRawHtml
 
 Func getAnnouncements($htmFile, $dataFile) ;error code 07
@@ -304,6 +361,12 @@ Func getAnnouncements($htmFile, $dataFile) ;error code 07
 	FileClose($txtOpenAnnouncements)
 EndFunc   ;==>getAnnouncements
 
+Func getWall($htmFile, $dataFile)
+
+
+
+EndFunc
+
 Func _StringBetween2($s, $from, $to)
 	$x = StringInStr($s, $from) + StringLen($from)
 	$y = StringInStr(StringTrimLeft($s, $x), $to)
@@ -311,25 +374,23 @@ Func _StringBetween2($s, $from, $to)
 EndFunc   ;==>_StringBetween2
 
 Func load() ;Error code number 01
-	$confHandle = FileOpen("LCN.conf")
+	$confHandle = FileOpen($TempDir&"LCN.conf")
 	debug("Loading config file")
 	Local $readBuffer = ""
-	$random = FileReadLine($confHandle, 8) ;random
-	if @error Then errorCode(0101)
+	;$random = FileReadLine($confHandle, 8) ;random
+	;if @error Then errorCode(0101)
 
+	_Crypt_Startup()
 	$readBuffer = FileReadLine($confHandle, 2) ;username
-	;if @error Then errorCode(0102)
-	$sUsername = _AesDecrypt($random, $readBuffer)
-	;if @error Then errorCode(0103)
-	$sUsername = BinaryToString($sUsername)
+	if @error Then errorCode(0102)
+	$sUsername = BinaryToString(_Crypt_DecryptData($readBuffer,$random, $CALG_AES_256))
 	if @error Then errorCode(0104)
 
 	$readBuffer = FileReadLine($confHandle, 3) ;pass
 	;if @error Then errorCode(0105)
-	$sPassword = _AesDecrypt($random, $readBuffer)
-	;if @error Then errorCode(0106)
-	$sPassword = BinaryToString($sPassword)
+	$sPassword = BinaryToString(_Crypt_DecryptData($readBuffer,$random, $CALG_AES_256))
 	if @error Then errorCode(0107)
+	_Crypt_Shutdown()
 
 	$sFrequency = FileReadLine($confHandle, 4) ;Frequency
 	if @error Then errorCode(0108)
@@ -355,9 +416,9 @@ Func getClassID() ;error code 08
 	debug("Getting Class ID's")
 	ShellExecuteWait(@ScriptDir & "\Fetch_ClassID.bat", $sUsername & " " & $sPassword, "", "", @SW_HIDE)
 	if @error Then errorCode(0801)
-	$cID_MainReadHandle = FileOpen("Temp\Main_Page.htm")
-	$cID_ClassesIDWriteHandle = FileOpen("ClassesID.txt", 2) ;write mode, overwrites data
-	$cID_ClassesNameWriteHandle = FileOpen("ClassesName.txt", 2) ;write mode, overwrites data
+	$cID_MainReadHandle = FileOpen($TempDir&"Main_Page.htm")
+	$cID_ClassesIDWriteHandle = FileOpen($TempDir&"ClassesID.txt", 2) ;write mode, overwrites data
+	$cID_ClassesNameWriteHandle = FileOpen($TempDir&"ClassesName.txt", 2) ;write mode, overwrites data
 	if @error Then errorCode(0802)
 
 	$cID_MainRead = FileRead($cID_MainReadHandle)
@@ -493,6 +554,50 @@ EndFunc   ;==>showAbout
 
 Func tSetup()
 	debug("Launching Setup from Tray")
-	RunWait("LCN_Gui.exe")
+	if FileExists( "LCN_Gui.exe" ) Then
+		debug("Running LCN_Gui.exe")
+		ShellExecuteWait("LCN_Gui.exe", "", "", "", @SW_HIDE)
+	Else
+		debug("Running LCN_Gui.exe")
+		;$TempConfAu3Dir = @ProgramFilesDir & '\AutoIt3\autoit3.exe" "' & @ScriptDir & '\LCN_Gui.au3""'
+		;MsgBox(0,"",$TempConfAu3Dir)
+		ShellExecuteWait(@ProgramFilesDir & "\AutoIt3\autoit3.exe", @ScriptDir & "\LCN_Gui.au3", "", "", @SW_HIDE)
+	EndIf
 	debug("Setup Closed")
+EndFunc
+
+Func CheckUserPass()
+	$check_Username = $sUsername
+	$check_Password = $sPassword
+	ShellExecuteWait( "CheckUserPass.bat", $check_Username & " " & $check_Password, "", "", @SW_HIDE)
+	$check_count = 1
+	$check_fileHandle = FileOpen($TempDir&"CheckUserPass.htm")
+	$check_fileRead = FileReadLine($check_fileHandle, 1)
+	if $check_fileRead = "" Then
+		MsgBox( 0, "LCN", "Username or Password incorrect!")
+		Return 0
+	Else
+		Return 1
+	EndIf
+EndFunc
+
+Func CheckUpdate()
+	InetGet( "http://fs1.d-h.st/download/00111/NEl/CurrentVersion.txt", $TempDir&"CheckUpdate.log", 1)
+	$checkUpdateHandle = FileOpen( $TempDir&"CheckUpdate.log" )
+	$currentVersionHandle = FileOpen( "CurrentVersion.txt" )
+	$checkUpdateRead = FileReadLine( $checkUpdateHandle, 1 )
+	$currentVersionRead = FileReadLine( $currentVersionHandle, 1 )
+
+	if $currentVersionRead >= $checkUpdateRead Then
+		;MsgBox( 0, "", "Latest Version")
+		FileClose( $checkUpdateHandle )
+		FileClose( $currentVersionHandle )
+	Else
+		;MsgBox( 0, "", "New Version Found"&@CRLF&"Current Version: "&$currentVersionRead&@CRLF&"New Version: "&$checkUpdateRead&@CRLF&"Download and Install?")
+		$update = MsgBox( 4, "", "New Version Found! Download and Install?")
+		if $update = 6 Then
+			;ShellExecute( "LCN_Updater.exe", "", "", "", @SW_HIDE)
+			Exit ;exit program so it can be rewritten
+		EndIf
+	EndIf
 EndFunc
