@@ -31,24 +31,22 @@ $tExit = TrayCreateItem("Exit")
 TrayItemSetOnEvent(-1, "ExitScript")
 TraySetState(1) ; Show the tray menu.
 
-$sFrequency = "1"
-$s_f_mOn = ""
-$s_Ln_aOn = "1"
-$s_f_iOn = ""
-$s_w_On = ""
+$sFrequency = "1" ;saved Frequency
+$s_f_mOn = "" ;main forum
+$s_Ln_aOn = "1" ;announcement switch
+$s_f_iOn = "" ;individual forum
+$s_w_On = "" ;class wall
 $s_a_lOn = "0"; turns debugging off until conf file is read
-$s_cOn = ""
+$s_cOn = "" ;computer notification switch
 $adataID = ""
 $nCount = 0
 
 $TempDir = @AppDataDir&"\LoudCloud_Notifier\"
 
 $confHandle = FileOpen($TempDir&"LCN.conf") ;load config settings from setup
-$DebugOverride = 1 ;overrides setting in config file good for debugging problems before opening of the conf file
+$DebugOverride = 0 ;overrides setting in config file good for debugging problems before opening of the conf file
 
-;if $s_a_lOn = 1 or $DebugOverride = 1 Then
-		$DebugLog = FileOpen($TempDir&"debug.log", 2) ;open log for debugging
-;EndIf
+$DebugLog = FileOpen($TempDir&"debug.log", 2) ;open log for debugging
 
 debug("Starting Program Advanced script logging")
 if @error Then errorCode(1001)
@@ -58,10 +56,10 @@ If $confHandle = -1 Then
 	$setup = MsgBox(4, "LCN Error", "An error has ccured opening config file. Would you like to run setup?")
 	If $setup = "6" Then
 		debug("Running LCN Setup")
-		if FileExists( "LCN_Gui.exe" ) Then
-			RunWait("LCN_Gui.exe")
+		if FileExists( "LCN_Gui.au3" ) Then
+			ShellExecuteWait(@ProgramFilesDir&"/Autoit3/Autoit3.exe","LCN_Gui.au3") ;will only execute if source if found
 		Else
-			RunWait("LCN_Gui.au3")
+			ShellExecuteWait("LCN_Gui.exe")
 		EndIf
 		$confHandle = FileOpen("LCN.conf")
 	Else
@@ -558,7 +556,7 @@ Func tSetup()
 		debug("Running LCN_Gui.exe")
 		ShellExecuteWait("LCN_Gui.exe", "", "", "", @SW_HIDE)
 	Else
-		debug("Running LCN_Gui.exe")
+		debug("Running LCN_Gui.au3")
 		;$TempConfAu3Dir = @ProgramFilesDir & '\AutoIt3\autoit3.exe" "' & @ScriptDir & '\LCN_Gui.au3""'
 		;MsgBox(0,"",$TempConfAu3Dir)
 		ShellExecuteWait(@ProgramFilesDir & "\AutoIt3\autoit3.exe", @ScriptDir & "\LCN_Gui.au3", "", "", @SW_HIDE)
@@ -567,17 +565,20 @@ Func tSetup()
 EndFunc
 
 Func CheckUserPass()
-	$check_Username = $sUsername
-	$check_Password = $sPassword
+	$check_Username = GUICtrlRead($UserName)
+	$check_Password = GUICtrlRead($Password)
+
 	ShellExecuteWait( "CheckUserPass.bat", $check_Username & " " & $check_Password, "", "", @SW_HIDE)
-	$check_count = 1
-	$check_fileHandle = FileOpen($TempDir&"CheckUserPass.htm")
-	$check_fileRead = FileReadLine($check_fileHandle, 1)
-	if $check_fileRead = "" Then
+
+	$check_fileRead = FileGetSize($TempDir&"CheckUserPass.htm")
+	$check_fileRead_TRAD = FileGetSize($TempDir&"TRAD_CheckUserPass.htm")
+	$check_fileRead_UGRAD = FileGetSize($TempDir&"UGRAD_CheckUserPass.htm")
+
+	if $check_fileRead <=1 and $check_fileRead_TRAD <=1 and $check_fileRead_UGRAD <=1 Then
 		MsgBox( 0, "LCN", "Username or Password incorrect!")
-		Return 0
+		Return "0"
 	Else
-		Return 1
+		Return "1"
 	EndIf
 EndFunc
 
