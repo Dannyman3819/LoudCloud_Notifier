@@ -32,6 +32,12 @@ $V_LN_w_On = 0
 ;~ $V_OK = 0
 ;~ $V_CANCEL = 0
 ;~ $V_ABOUT = 0
+$V_LCvOn = 0
+$V_LCvOff = 1
+$V_TRADvOn = 0
+$V_TRADvOff = 1
+$V_UGRADvOn = 0
+$V_UGRADvOff = 1
 
 $sUsername = ""
 $sPassword = ""
@@ -62,12 +68,12 @@ $random = $AESkey
 load() ;loads LCN.conf
 ;radiobutons(); changes settings of radio buttons into TRUE and FALSE
 
-#region ### START Koda GUI section ### Form=c:\users\daniel\desktop\scripts_stuff\batch\curl\testing_folder\autoit\lcn setup.kxf
+#region
 $LCN_Setup = GUICreate("LoudCloud Notifier", 554, 397, 265, 139)
 $PageControl1 = GUICtrlCreateTab(8, 8, 636, 352)
 GUICtrlSetFont(-1, 10, 400, 0, "Arial")
 
-$TabSheet1 = GUICtrlCreateTabItem(" LoudCloud Settings")
+$TabSheet1 = GUICtrlCreateTabItem("LoudCloud Settings")
 $UserName = GUICtrlCreateInput($sUsername, 16, 98, 209, 24)
 GUICtrlSetFont(-1, 10, 400, 0, "Arial")
 GUICtrlSetState(-1, $GUI_FOCUS)
@@ -96,15 +102,30 @@ $LI_ClassID = GUICtrlCreateList("", 24, 268, 400, 86)
 GUICtrlSetFont(-1, 10, 400, 0, "Arial")
 loadClassID() ;fills list if get script already ran
 
-$TabSheet2 = GUICtrlCreateTabItem("Notification")
-$Label1 = GUICtrlCreateLabel("Do you want to turn on computer notifications?", 16, 42, 273, 20)
-GUICtrlSetFont(-1, 10, 400, 0, "Arial")
-$cGroup = GUICtrlCreateGroup("", 16, 58, 520, 289)
-GUICtrlSetFont(-1, 10, 400, 0, "Arial")
-$L_cComputer = GUICtrlCreateLabel("Computer:", 24, 74, 64, 20)
-$cOn = GUICtrlCreateRadio("On", 32, 98, 41, 17)
-$cOff = GUICtrlCreateRadio("Off", 80, 98, 41, 17)
-GUICtrlSetState(-1, $GUI_CHECKED)
+;~ $TabSheet2 = GUICtrlCreateTabItem("LoudCloud Version")
+;~ $Label1 = GUICtrlCreateLabel("Please pick one LoudCloud version:", 16, 42, 273, 20)
+;~ GUICtrlSetFont(-1, 10, 400, 0, "Arial")
+;~ $cGroup = GUICtrlCreateGroup("", 16, 58, 520, 289)
+;~ GUICtrlSetFont(-1, 10, 400, 0, "Arial")
+;~ ;GUIStartGroup()
+;~ GUICtrlCreateLabel("LC.gcu.edu", 24, 74, 70, 20)
+;~ GUICtrlSetFont(-1, 10, 400, 0, "Arial")
+;~ $LCvOn = GUICtrlCreateRadio("On", 32, 98, 41, 17)
+;~ $LCvOff = GUICtrlCreateRadio("Off", 80, 98, 41, 17)
+;~ ;GUICtrlSetState(-1, $GUI_CHECKED)
+;~ ;GUIStartGroup()
+;~ GUICtrlCreateLabel("LC-TRAD.gcu.edu", 24, 130, 108, 20)
+;~ GUICtrlSetFont(-1, 10, 400, 0, "Arial")
+;~ $TRADvOn = GUICtrlCreateRadio("On", 32, 154, 41, 17)
+;~ $TRADvOff = GUICtrlCreateRadio("Off", 80, 154, 41, 17)
+;~ GUICtrlSetState(-1, $GUI_CHECKED)
+;~ ;GUIStartGroup()
+;~ GUICtrlCreateLabel("LC-UGRAD.gcu.edu", 24, 186, 120, 20)
+;~ GUICtrlSetFont(-1, 10, 400, 0, "Arial")
+;~ $UGRADvOn = GUICtrlCreateRadio("On", 32, 210, 41, 17)
+;~ $UGRADvOff = GUICtrlCreateRadio("Off", 80, 210, 41, 17)
+;~ ;GUICtrlSetState(-1, $GUI_CHECKED)
+
 GUICtrlCreateGroup("", -99, -99, 1, 1)
 $TabSheet3 = GUICtrlCreateTabItem("LoudCloud Notifications")
 
@@ -113,17 +134,21 @@ GUICtrlSetFont(-1, 10, 400, 0, "Arial")
 
 GUIStartGroup()
 $L_aAnnouncments = GUICtrlCreateLabel("Announcements:", 24, 72, 102, 20)
+GUICtrlSetFont(-1, 10, 400, 0, "Arial")
 $Ln_aOn = GUICtrlCreateRadio("On", 32, 96, 41, 17)
 $Ln_aOff = GUICtrlCreateRadio("Off", 80, 96, 41, 17)
 GUICtrlSetState(-1, $GUI_CHECKED)
 GUIStartGroup()
 $Label4 = GUICtrlCreateLabel("Forum:", 24, 128, 45, 20)
+GUICtrlSetFont(-1, 10, 400, 0, "Arial")
 $Label3 = GUICtrlCreateLabel("Main Forum: (WIP)", 32, 152, 114, 20)
+GUICtrlSetFont(-1, 10, 400, 0, "Arial")
 $Ln_f_mOn = GUICtrlCreateRadio("On", 40, 176, 41, 17)
 $Ln_f_mOff = GUICtrlCreateRadio("Off", 80, 176, 41, 17)
 GUICtrlSetState(-1, $GUI_CHECKED)
 GUIStartGroup()
 $Label5 = GUICtrlCreateLabel("Individual Forum: (WIP)", 32, 200, 138, 20)
+GUICtrlSetFont(-1, 10, 400, 0, "Arial")
 $LN_f_iOn = GUICtrlCreateRadio("On", 40, 224, 41, 17)
 $LN_f_iOff = GUICtrlCreateRadio("Off", 80, 224, 41, 17)
 GUICtrlSetState(-1, $GUI_CHECKED)
@@ -131,6 +156,7 @@ GUIStartGroup()
 GUIStartGroup()
 GUIStartGroup()
 $Label6 = GUICtrlCreateLabel("Class Wall:", 24, 256, 71, 20)
+GUICtrlSetFont(-1, 10, 400, 0, "Arial")
 $LN_w_On = GUICtrlCreateRadio("On", 32, 280, 41, 17)
 $LN_w_Off = GUICtrlCreateRadio("Off", 72, 280, 33, 17)
 GUICtrlSetState(-1, $GUI_CHECKED)
@@ -153,7 +179,7 @@ GUICtrlSetState(-1, $GUI_DEFBUTTON)
 $CANCEL = GUICtrlCreateButton("&Cancel", 382, 368, 75, 25)
 $ABOUT = GUICtrlCreateButton("&About", 464, 368, 75, 25)
 GUISetState(@SW_SHOW)
-#endregion ### END Koda GUI section ###
+#endregion
 
 radiobutons()
 
@@ -163,36 +189,56 @@ While 1
 	Switch $nMsg
 		Case $GUI_EVENT_CLOSE
 			Exit
-		Case $cOn
-			$V_cOn = 1
-			$V_cOff = 0
-		Case $cOff
-			$V_cOff = 1
-			$V_cOn = 0
+
+;~ 		Case $LCvOn
+;~ 			$V_LCvOn = 1
+;~ 			$V_LCvOff = 0
+;~ 		Case $LCvOff
+;~ 			$V_LCvOn = 0
+;~ 			$V_TRADvOff = 1
+
+;~ 		Case $TRADvOn
+;~ 			$V_TRADvOn = 1
+;~ 			$V_TRADvOff = 0
+;~ 		Case $TRADvOff
+;~ 			$V_TRADvOn = 0
+;~ 			$V_TRADvOff = 1
+
+;~ 		Case $UGRADvOn
+;~ 			$V_UGRADvOn = 1
+;~ 			$V_UGRADvOff = 0
+;~ 		Case $UGRADvOff
+;~ 			$V_UGRADvOn = 0
+;~ 			$V_UGRADvOff = 1
+
 		Case $Ln_aOn
 			$V_Ln_aOn = 1
 			$V_Ln_aOff = 0
 		Case $Ln_aOff
 			$V_Ln_aOff = 1
 			$V_Ln_aOn = 0
+
 		Case $Ln_f_mOn
 			$V_Ln_f_mOn = 1
 			$V_Ln_f_mOff = 0
 		Case $Ln_f_mOff
 			$V_Ln_f_mOff = 1
 			$V_Ln_f_mOn = 0
+
 		Case $LN_f_iOn
 			$V_LN_f_iOn = 1
 			$V_LN_f_iOff = 0
 		Case $LN_f_iOff
 			$V_LN_f_iOff = 1
 			$V_LN_f_iOn = 0
+
 		Case $LN_w_On
 			$V_LN_w_Off = 0
 			$V_LN_w_On = 1
 		Case $LN_w_Off
 			$V_LN_w_Off = 1
 			$V_LN_w_On = 0
+
 		Case $LN_a_lOn
 			$V_LN_a_lOn = 1
 			$V_LN_a_lOff = 0
@@ -212,13 +258,14 @@ While 1
 			showAbout()
 		Case $B_Get
 			if GUICtrlRead($UserName) = "" or GUICtrlRead($Password) = "" Then
-				MsgBox( 0, "LCN", "Enter Username and password!")
+				MsgBox( 0, "LCN", "Enter Username and Password!")
 			Else
 				loadClassIDGUI()
 				if CheckUserPass() = "1" Then
 					getClassID()
 					loadClassID(1)
 				Else
+					MsgBox( 0, "LCN", "Username or Password Incorrect!")
 					exitIDGUI()
 				EndIf
 			EndIf
@@ -230,7 +277,6 @@ Func showAbout()
 	#include <GUIConstantsEx.au3>
 	#include <StaticConstants.au3>
 	#include <WindowsConstants.au3>
-	#region ### START Koda GUI section ### Form=c:\users\daniel\desktop\scripts_stuff\batch\curl\testing_folder\autoit\about.kxf
 	$Form1_1 = GUICreate("About", 323, 240, 417, 208)
 	$GroupBox1 = GUICtrlCreateGroup("", 8, 8, 305, 185)
 	$Label1 = GUICtrlCreateLabel("LoudCloud Notifier (LCN)", 80, 24, 151, 20)
@@ -241,16 +287,17 @@ Func showAbout()
 	GUICtrlCreateGroup("", -99, -99, 1, 1)
 	$Button1 = GUICtrlCreateButton("&OK", 116, 208, 75, 25, 0)
 	GUISetState(@SW_SHOW)
-	#endregion ### END Koda GUI section ###
+
 
 	While 1
 		$nMsg = GUIGetMsg()
 		Switch $nMsg
 			Case $GUI_EVENT_CLOSE
-				Exit
-
+				GUIDelete($Form1_1)
+				ExitLoop
 			Case $Button1
 				GUIDelete($Form1_1)
+				ExitLoop
 		EndSwitch
 	WEnd
 EndFunc   ;==>showAbout
@@ -395,13 +442,13 @@ EndFunc
 Func radiobutons() ;loads save settings
 	$exist = FileExists($TempDir&"LCN.conf")
 	If $exist Then
-		If $s_cOn = 1 Then
-			GUICtrlSetState($cOn, $GUI_CHECKED)
-			$V_cOn = 1
-		Else
-			GUICtrlSetState($cOff, $GUI_CHECKED)
-			$V_cOn = 0
-		EndIf
+;~ 		If $s_cOn = 1 Then
+;~ 			GUICtrlSetState($cOn, $GUI_CHECKED)
+;~ 			$V_cOn = 1
+;~ 		Else
+;~ 			GUICtrlSetState($cOff, $GUI_CHECKED)
+;~ 			$V_cOn = 0
+;~ 		EndIf
 		If $s_Ln_aOn = 1 Then
 			GUICtrlSetState($Ln_aOn, $GUI_CHECKED)
 			$V_Ln_aOn = 1
@@ -457,6 +504,7 @@ Func getClassID()
 	$cID_MainRead = FileRead($cID_MainReadHandle)
 	GUICtrlSetData($P_Load, 45)
 	GUICtrlSetData($L_Load, "Parsing data...")
+	;if $check_fileRead =
 	$cID_WhileCount = 1
 	While $cID_WhileCount
 		$cID_IDBlock = _StringBetween2($cID_MainRead, 'input class="allClassCheck" checked="checked" type="checkbox" name="allClassCheck" value="', '" /></span>') ;find table of info
@@ -504,11 +552,13 @@ Func CheckUserPass()
 	$check_Username = GUICtrlRead($UserName)
 	$check_Password = GUICtrlRead($Password)
 
-	ShellExecuteWait( "CheckUserPass.bat", $check_Username & " " & $check_Password, "", "runas", @SW_HIDE)
-	$check_count = 1
-	$check_fileHandle = FileOpen($TempDir&"CheckUserPass.htm")
-	$check_fileRead = FileReadLine($check_fileHandle, 1)
-	if $check_fileRead = "" Then
+	ShellExecuteWait( "CheckUserPass.bat", $check_Username & " " & $check_Password, "", "", @SW_HIDE)
+
+	$check_fileRead = FileGetSize($TempDir&"CheckUserPass.htm")
+	$check_fileRead_TRAD = FileGetSize($TempDir&"TRAD_CheckUserPass.htm")
+	$check_fileRead_UGRAD = FileGetSize($TempDir&"UGRAD_CheckUserPass.htm")
+
+	if $check_fileRead <=1 and $check_fileRead_TRAD <=1 and $check_fileRead_UGRAD <=1 Then
 		MsgBox( 0, "LCN", "Username or Password incorrect!")
 		Return "0"
 	Else

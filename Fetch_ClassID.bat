@@ -22,7 +22,9 @@ set /a ut=ut*86400+100%Hour%%%100*3600+100%Minute%%%100*60+100%Second%%%100
 set UNIX_TIME=%ut%
 echo %UNIX_TIME% seconds have elapsed since 1970-01-01 00:00:00
 
-curl-7.29.0\curl.exe  "https://lc-trad1.gcu.edu/learningPlatform/j_spring_security_check" -d "j_username=%uName%&j_password=%pWord%" -c "%APPDATA%\LoudCloud_Notifier\LC_Cookie" -k
+curl-7.29.0\curl.exe  "https://lc.gcu.edu/learningPlatform/j_spring_security_check" -d "j_username=%uName%&j_password=%pWord%" -c "%APPDATA%\LoudCloud_Notifier\LC_Cookie" -k
+curl-7.29.0\curl.exe  "https://lc-ugrad1.gcu.edu/learningPlatform/j_spring_security_check" -d "j_username=%uName%&j_password=%pWord%" -c "%APPDATA%\LoudCloud_Notifier\UGRAD_Cookie" -k
+curl-7.29.0\curl.exe  "https://lc-trad1.gcu.edu/learningPlatform/j_spring_security_check" -d "j_username=%uName%&j_password=%pWord%" -c "%APPDATA%\LoudCloud_Notifier\TRAD_Cookie" -k
 
 goto:getData
 
@@ -31,8 +33,14 @@ exit /B
 
 :getData
 
-curl-7.29.0\curl.exe -G "https://lc-trad1.gcu.edu/learningPlatform/user/users.lc" -b "%APPDATA%\LoudCloud_Notifier\LC_Cookie" -d "operation=loggedIn" -k > "%APPDATA%\LoudCloud_Notifier\Main_Page1.htm"
-curl-7.29.0\curl.exe -G "https://lc-trad1.gcu.edu/learningPlatform/user/users.lc" -b "%APPDATA%\LoudCloud_Notifier\LC_Cookie" -d "operation=getSelectClass&c=prepareSelectClass&tempDate=%UNIX_TIME%" -k > "%APPDATA%\LoudCloud_Notifier\Main_Page.htm"
+curl-7.29.0\curl.exe -G "https://lc.gcu.edu/learningPlatform/user/users.html" -b "%APPDATA%\LoudCloud_Notifier\LC_Cookie" -d "operation=loggedIn" -k > "%APPDATA%\LoudCloud_Notifier\Main_Page1.htm"
+curl-7.29.0\curl.exe -G "https://lc.gcu.edu/learningPlatform/user/users.html" -b "%APPDATA%\LoudCloud_Notifier\LC_Cookie" -d "operation=getSelectClass&c=prepareSelectClass&tempDate=%UNIX_TIME%" -k > "%APPDATA%\LoudCloud_Notifier\Main_Page.htm"
+
+curl-7.29.0\curl.exe -G "https://lc-ugrad1.gcu.edu/learningPlatform/user/users.html" -b "%APPDATA%\LoudCloud_Notifier\UGRAD_Cookie" -d "operation=loggedIn" -k > "%APPDATA%\LoudCloud_Notifier\UGRAD_Main_Page1.htm"
+curl-7.29.0\curl.exe -G "https://lc-ugrad1.gcu.edu/learningPlatform/user/users.html" -b "%APPDATA%\LoudCloud_Notifier\UGRAD_Cookie" -d "operation=getSelectClass&c=prepareSelectClass&tempDate=%UNIX_TIME%" -k > "%APPDATA%\LoudCloud_Notifier\UGRAD_Main_Page.htm"
+
+curl-7.29.0\curl.exe -G "https://lc-trad1.gcu.edu/learningPlatform/user/users.lc" -b "%APPDATA%\LoudCloud_Notifier\TRAD_Cookie" -d "operation=loggedIn" -k > "%APPDATA%\LoudCloud_Notifier\TRAD_Main_Page1.htm"
+curl-7.29.0\curl.exe -G "https://lc-trad1.gcu.edu/learningPlatform/user/users.lc" -b "%APPDATA%\LoudCloud_Notifier\TRAD_Cookie" -d "operation=getSelectClass&c=prepareSelectClass&tempDate=%UNIX_TIME%" -k > "%APPDATA%\LoudCloud_Notifier\TRAD_Main_Page.htm"
 
 goto:eof
 )
